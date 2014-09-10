@@ -18,7 +18,7 @@ def test_radardisplay_rhi(outfile=None):
     display = pyart.graph.RadarDisplay(radar)
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    display.plot_rhi('reflectivity_horizontal', 0, ax=ax)
+    display.plot('reflectivity_horizontal', 0, ax=ax)
     if outfile:
         fig.savefig(outfile)
     plt.close()
@@ -29,9 +29,9 @@ def test_radardisplay_ppi(outfile=None):
     display = pyart.graph.RadarDisplay(radar, shift=(0.1, 0.0))
     fig = plt.figure()
     ax = fig.add_subplot(111)
-    display.plot_ppi('reflectivity_horizontal', 0, colorbar_flag=True,
-                     title="Fancy PPI Plot",
-                     mask_tuple=('reflectivity_horizontal', -100))
+    display.plot('reflectivity_horizontal', 0, colorbar_flag=True,
+                 title="Fancy PPI Plot",
+                 mask_tuple=('reflectivity_horizontal', -100))
     display.plot_colorbar()
     display.plot_range_rings([10, 20, 30, 40], ax=ax)
     display.plot_labels(['tree'], [(36.68, -97.62)], symbols='k+', ax=ax)
@@ -55,6 +55,19 @@ def test_radardisplay_ray(outfile=None):
     plt.close()
 
 
+def test_radardisplay_vpt(outfile=None):
+    radar = pyart.io.read_cfradial(pyart.testing.CFRADIAL_PPI_FILE)
+    pyart.core.to_vpt(radar)      # hack to make the data a VPT
+    display = pyart.graph.RadarDisplay(radar)
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+    display.plot('reflectivity_horizontal', colorbar_flag=True,
+                 mask_tuple=('reflectivity_horizontal', -100), ax=ax)
+    if outfile:
+        fig.savefig(outfile)
+    plt.close()
+
+
 # Tests of methods, these tests do not generate figures
 
 
@@ -66,6 +79,7 @@ def test_radardisplay_init():
     del radar.metadata['instrument_name']
     display = pyart.graph.RadarDisplay(radar)
     assert display.radar_name == ''
+    plt.close()
 
 
 def test_radardisplay_generate_filename():
@@ -73,6 +87,7 @@ def test_radardisplay_generate_filename():
     display = pyart.graph.RadarDisplay(radar, shift=(0.1, 0.0))
     filename = display.generate_filename('test', 0)
     assert filename == 'xsapr-sgp_test_00_20110520105416.png'
+    plt.close()
 
 
 def test_radardisplay_plot_labels_errors():
@@ -83,6 +98,10 @@ def test_radardisplay_plot_labels_errors():
     # len(labels) != len(symbols)
     assert_raises(ValueError, display.plot_labels, ['a'], [(0, 0)],
                   symbols=['r+', 'r+'])
+    # unknown scan_type
+    display.scan_type = 'foo'
+    assert_raises(ValueError, display.plot, 'fake_field')
+    plt.close()
 
 
 def test_radardisplay_user_specified_labels():
@@ -106,6 +125,35 @@ def test_radardisplay_user_specified_labels():
     display._label_axes_ray(('baz', 'qux'), 'field', ax)
     assert ax.get_xlabel() == 'baz'
     assert ax.get_ylabel() == 'qux'
+
+    display._label_axes_vpt(('nick', 'nock'), ax)
+    assert ax.get_xlabel() == 'nick'
+    assert ax.get_ylabel() == 'nock'
+    plt.close()
+
+
+def test_radardisplay_misc():
+    # misc methods which are not tested above
+    radar = pyart.io.read_cfradial(pyart.testing.CFRADIAL_PPI_FILE)
+    display = pyart.graph.RadarDisplay(radar)
+    fig = plt.figure()
+    ax = fig.add_subplot(111)
+
+    # _set_vpt_title with a title
+    display._set_vpt_title('foo_field', 'title_string', ax)
+    assert ax.get_title() == 'title_string'
+
+    # _generate_field_name method
+    fn = display._generate_field_name('reflectivity_horizontal')
+    assert fn == 'Equivalent reflectivity factor'
+
+    display.fields['reflectivity_horizontal'].pop('standard_name')
+    fn = display._generate_field_name('reflectivity_horizontal')
+    assert fn == 'Equivalent reflectivity factor'
+
+    display.fields['reflectivity_horizontal'].pop('long_name')
+    fn = display._generate_field_name('reflectivity_horizontal')
+    assert fn == 'Reflectivity horizontal'
 
     plt.close()
 
@@ -134,9 +182,11 @@ def test_radardisplay_get_colorbar_label():
     print display._get_colorbar_label('reflectivity_horizontal')
     assert (display._get_colorbar_label('reflectivity_horizontal') ==
             'reflectivity horizontal (?)')
+    plt.close()
 
 
 if __name__ == "__main__":
     test_radardisplay_rhi('figure_radar_display_rhi.png')
     test_radardisplay_ppi('figure_radar_display_ppi.png')
     test_radardisplay_ray('figure_radar_display_ray.png')
+    test_radardisplay_vpt('figure_radar_display_vpt.png')

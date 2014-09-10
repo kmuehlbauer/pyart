@@ -23,7 +23,7 @@ import pyart
 
 # read in the NEXRAD data, create the display
 fname = '20110520100000_nex_3d.nc'
-grid = pyart.io.grid.read_grid(fname)
+grid = pyart.io.read_grid(fname)
 display = pyart.graph.GridMapDisplay(grid)
 
 # create the figure
@@ -57,6 +57,11 @@ y_m_d = grid_date.strftime('%Y%m%d')
 y_m = grid_date.strftime('%Y%m')
 url = ('http://nomads.ncdc.noaa.gov/dods/NCEP_NARR_DAILY/' + y_m + '/' +
        y_m_d + '/narr-a_221_' + y_m_d + '_0000_000')
+# Use a local copy of the online NCEP NARR data, this file can be created with
+# the command:
+# nccopy http://nomads.ncdc.noaa.gov/dods/NCEP_NARR_DAILY/201105/20110520/narr-a_221_20110520_0000_000?lon,lat,time,prmsl narr-a_221_20110520_0000_000.nc
+# comment out the next line to retrieve the data from the OPeNDAP server.
+url = 'narr-a_221_20110520_0000_000.nc'
 data = Dataset(url)
 
 # extract data at correct time
@@ -72,7 +77,7 @@ display.basemap.contour(x, y, prmsl, clevs, colors='k', linewidths=1.)
 
 # colorbar
 cbax = fig.add_axes(colorbar_panel_axes)
-display.plot_colorbar()
+display.plot_colorbar(cax=cbax)
 
 # panel 2, longitude slice.
 ax2 = fig.add_axes(x_cut_panel_axes)

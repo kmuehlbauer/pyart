@@ -9,15 +9,19 @@ from .version import git_revision as __git_revision__
 from .version import version as __version__
 
 # import subpackages
+from . import core
 from . import io
 from . import correct
 from . import graph
 from . import map
 from . import testing
 from . import config
+from . import aux_io
+from . import retrieve
 
 # root level functions
-from config import load_config
+from .config import load_config
+from ._debug_info import _debug_info
 
 # test function setup based on scikit-image test function
 import imp as _imp

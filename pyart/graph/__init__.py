@@ -9,6 +9,7 @@ Graphing (:mod:`pyart.graph`)
     :toctree: generated/
 
     RadarDisplay
+    RadarMapDisplay
     GridMapDisplay
     MdvDisplay
     RslDisplay
@@ -17,7 +18,7 @@ Graphing (:mod:`pyart.graph`)
 
 """
 
-from .radar_display import RadarDisplay
+from .radardisplay import RadarDisplay
 from .plot_mdv import MdvDisplay
 from .plot_cfradial import CFRadialDisplay
 from . import cm
@@ -26,7 +27,13 @@ try:
     from .gridmapdisplay import GridMapDisplay
 except ImportError:
     import warnings
-    warnings.warn('No grid plotting support, requires basemap and pyproj')
+    warnings.warn('No grid plotting support, requires basemap.')
+
+try:
+    from .radarmapdisplay import RadarMapDisplay
+except ImportError:
+    import warnings
+    warnings.warn('No grid plotting support, requires basemap.')
 
 try:
     from .plot_rsl import RslDisplay

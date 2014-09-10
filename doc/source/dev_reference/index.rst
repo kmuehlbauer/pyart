@@ -16,10 +16,14 @@ Documentation is broken down by directory and module.
 
 .. toctree::
     :maxdepth: 2
-
+    
+    core
     io
+    aux_io
     config
     correct
+    retrieve
     graph
     map
     testing
+    _debug_info

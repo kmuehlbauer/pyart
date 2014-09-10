@@ -154,6 +154,8 @@ class NEXRADLevel2File():
 
         # pull out msg31 records which contain the moment data.
         self.msg31s = [r for r in self._records if r['header']['type'] == 31]
+        if len(self.msg31s) == 0:
+            raise ValueError('No MSG31 records found, cannot read file')
         elev_nums = np.array([m['msg31_header']['elevation_number']
                              for m in self.msg31s])
         self.scan_msgs = [np.where(elev_nums == i + 1)[0]
@@ -419,8 +421,8 @@ class NEXRADLevel2File():
             msg_num = self.scan_msgs[scan][0]
             msg = self.msg31s[msg_num]
             if moment in msg.keys():
-                offset = msg[moment]['offset']
-                scale = msg[moment]['scale']
+                offset = np.float32(msg[moment]['offset'])
+                scale = np.float32(msg[moment]['scale'])
                 return (np.ma.masked_less_equal(data, 1) - offset) / (scale)
 
         # moment is not present in any scan, mask all values

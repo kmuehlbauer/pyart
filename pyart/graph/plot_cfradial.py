@@ -15,7 +15,7 @@ Routines for plotting radar data from CF/Radial netCDF files.
 import numpy as np
 import netCDF4
 
-from .radar_display import RadarDisplay
+from .radardisplay import RadarDisplay
 from .common import radar_coords_to_cart
 
 
@@ -51,9 +51,9 @@ class CFRadialDisplay(RadarDisplay):
     time_begin : datetime
         Beginning time of first radar scan.
     starts : array
-        Starting ray index for each tilt.
+        Starting ray index for each sweep.
     ends : array
-        Ending ray index for each tilt.
+        Ending ray index for each sweep.
     ranges : array
         Gate ranges in meters.
     azimuths : array
@@ -95,8 +95,8 @@ class CFRadialDisplay(RadarDisplay):
         self.y = self.y + self.shift[1]
 
         # radar location in latitude and longitude
-        lon = dataset.variables['longitude'][0]
-        lat = dataset.variables['latitude'][0]
+        lon = dataset.variables['longitude'][:]
+        lat = dataset.variables['latitude'][:]
         self.loc = [lat, lon]
 
         # datetime object describing first sweep time
@@ -114,7 +114,7 @@ class CFRadialDisplay(RadarDisplay):
 
     # public methods which are overridden.
 
-    def generate_title(self, field, tilt):
+    def generate_title(self, field, sweep):
         """
         Generate a title for a plot.
 
@@ -122,8 +122,8 @@ class CFRadialDisplay(RadarDisplay):
         ----------
         field : str
             Field plotted.
-        tilt : int
-            Tilt plotted.
+        sweep : int
+            Sweep plotted.
 
         Returns
         -------
@@ -132,7 +132,7 @@ class CFRadialDisplay(RadarDisplay):
 
         """
         time_str = self.time_begin.isoformat() + 'Z'
-        fixed_angle = self.fixed_angle[tilt]
+        fixed_angle = self.fixed_angle[sweep]
         l1 = "%s %.1f Deg. %s " % (self.radar_name, fixed_angle, time_str)
 
         field_name = self.dataset.variables[field].standard_name
@@ -149,10 +149,10 @@ class CFRadialDisplay(RadarDisplay):
             vmax = self.dataset.variables[field].valid_max
         return vmin, vmax
 
-    def _get_data(self, field, tilt, mask_tuple):
+    def _get_data(self, field, sweep, mask_tuple):
         """ Retrieve and return data from a plot function. """
-        start = self.starts[tilt]
-        end = self.ends[tilt]
+        start = self.starts[sweep]
+        end = self.ends[sweep] + 1
         data = self.dataset.variables[field][start:end]
 
         if mask_tuple is not None:

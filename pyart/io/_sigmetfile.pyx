@@ -196,6 +196,16 @@ cdef class SigmetFile:
                 # assuming nbins constant for all rays in a sweep
                 data[name][i, :, ray_nbins[0]:] = np.ma.masked
 
+        # scale 1-byte velocity by the Nyquist
+        # this conversion is kept in this method so that the
+        # product_hdr does not need to be accessed at lower abstraction
+        # layers.
+        if 'VEL' in self.data_type_names:
+            wavelength_cm = self.product_hdr['product_end']['wavelength']
+            prt_value = 1. / self.product_hdr['product_end']['prf']
+            nyquist = wavelength_cm / (10000.0 * 4.0 * prt_value)
+            data['VEL'] *= nyquist
+
         return data, metadata
 
     def _get_sweep(self, raw_data=False):
@@ -432,6 +442,7 @@ SIGMET_DATA_TYPES = {
     3: 'VEL',
     4: 'WIDTH',
     5: 'ZDR',
+    6: 'UNKNOWN_6',     # Not known
     7: 'DBZC',
     8: 'DBT2',
     9: 'DBZ2',
@@ -454,6 +465,9 @@ SIGMET_DATA_TYPES = {
     26: 'LDRH2',
     27: 'LDRV',
     28: 'LDRV2',
+    29: 'UNKNOWN_29',   # Not known
+    30: 'UNKNOWN_30',   # Not known
+    31: 'UNKNOWN_31',   # Not known
     32: 'HEIGHT',
     33: 'VIL2',
     34: 'RAW',
@@ -481,15 +495,77 @@ SIGMET_DATA_TYPES = {
     56: 'HCLASS2',
     57: 'ZDRC',
     58: 'ZDRC2',
-    59: 'UNKNOWN_59',
-    60: 'UNKNOWN_60',
-    61: 'UNKNOWN_61',
-    62: 'UNKNOWN_62',
-    63: 'UNKNOWN_63',
-    64: 'UNKNOWN_64',
-    65: 'UNKNOWN_65',
-    66: 'UNKNOWN_66',   # there may be more field, add as needed
-}
+    59: 'TEMPERATURE16',
+    60: 'VIR16',
+    61: 'DBTV8',
+    62: 'DBTV16',
+    63: 'DBZV8',
+    64: 'DBZV16',
+    65: 'SNR8',
+    66: 'SNR16',
+    67: 'ALBEDO8',
+    68: 'ALBEDO16',
+    69: 'VILD16',
+    70: 'TURB16',
+    71: 'DBTE8',
+    72: 'DBTE16',       # Total Power Enhanced
+    73: 'DBZE8',
+    74: 'DBZE16',       # Clutter Corrected Reflectivity Enhanced
+    # Uknown fields, do not know internal names, some may be user defined.
+    75: 'UNKNOWN_75',
+    76: 'UNKNOWN_76',
+    77: 'UNKNOWN_77',
+    78: 'UNKNOWN_78',
+    79: 'UNKNOWN_79',
+    80: 'UNKNOWN_80',
+    81: 'UNKNOWN_81',
+    82: 'UNKNOWN_82',
+    83: 'UNKNOWN_83',
+    84: 'UNKNOWN_84',
+    85: 'UNKNOWN_85',
+    86: 'UNKNOWN_86',
+    87: 'UNKNOWN_87',
+    88: 'UNKNOWN_88',
+    89: 'UNKNOWN_89',
+    90: 'UNKNOWN_90',
+    91: 'UNKNOWN_91',
+    92: 'UNKNOWN_92',
+    93: 'UNKNOWN_93',
+    94: 'UNKNOWN_94',
+    95: 'UNKNOWN_95',
+    96: 'UNKNOWN_96',
+    97: 'UNKNOWN_97',
+    98: 'UNKNOWN_98',
+    99: 'UNKNOWN_99',
+    100: 'UNKNOWN_100',
+    101: 'UNKNOWN_101',
+    102: 'UNKNOWN_102',
+    103: 'UNKNOWN_103',
+    104: 'UNKNOWN_104',
+    105: 'UNKNOWN_105',
+    106: 'UNKNOWN_106',
+    107: 'UNKNOWN_107',
+    108: 'UNKNOWN_108',
+    109: 'UNKNOWN_109',
+    110: 'UNKNOWN_110',
+    111: 'UNKNOWN_110',
+    112: 'UNKNOWN_112',
+    113: 'UNKNOWN_113',
+    114: 'UNKNOWN_114',
+    115: 'UNKNOWN_115',
+    116: 'UNKNOWN_116',
+    117: 'UNKNOWN_117',
+    118: 'UNKNOWN_118',
+    119: 'UNKNOWN_119',
+    120: 'UNKNOWN_120',
+    121: 'UNKNOWN_121',
+    122: 'UNKNOWN_122',
+    123: 'UNKNOWN_123',
+    124: 'UNKNOWN_124',
+    125: 'UNKNOWN_125',
+    126: 'UNKNOWN_126',
+    127: 'UNKNOWN_127',
+}   # there may be more field, add as needed
 
 
 # This function takes a majority of the time when reading data from a sigmet
@@ -512,6 +588,11 @@ def convert_sigmet_data(data_type, data):
         'ZDR2',     # 2-byte ZDR Format, section 4.3.38
         'DBZC2',    # Corrected reflectivity, XXX not certain of format
         'ZDRC2',    # Corrected differential reflectivity, XXX not certain
+        'DBTV16',   # Total V power, 2-byte
+        'DBZV16',   # Clutter corrected V reflectivity, 2-byte
+        'SNR16',    # Signal to noise ratio, 2-byte
+        'DBTE16',   # Total Power Enhanced, 2-byte
+        'DBZE16',   # Clutter corrected reflectivity enhanced, 2-byte
     ]
 
     like_sqi2 = [
@@ -524,6 +605,11 @@ def convert_sigmet_data(data_type, data):
     like_dbt = [
         'DBT',      # 1-bytes Reflectivity Format, section 4.3.3
         'DBZ',      # " "
+        'DBTV8',    # Total V power, 1-byte
+        'DBZV8',    # Clutter corrected V reflectivity, 1-byte
+        'SNR8',     # Signal to noise ratio, 1-byte
+        'DBTE8',    # Total power enhanced, 1-byte
+        'DBZE8',    # Clutter corrected reflectivity enhanced, 1-byte
     ]
 
     if data_type_name in like_dbt2:
@@ -573,14 +659,15 @@ def convert_sigmet_data(data_type, data):
         if data_type_name in like_dbt:
             # DB_DBT, 1, Total Power (1 byte)
             # 1-byte Reflectivity Format, section 4.3.3
-            out[:] = (ndata - 64) / 2.
+            out[:] = (ndata - 64.) / 2.
             out[ndata == 0] = np.ma.masked
 
         elif data_type_name == 'VEL':
             # VEL, 3, Velocity (1 byte)
             # 1-byte Velocity Format, section 4.3.29
-            # Note that this data should be multiplied by Nyquist
-            out[:] = (ndata - 128) / 127.
+            # Note that this data should be multiplied by Nyquist,
+            # this is done in the get_data method of the SigmetFile class.
+            out[:] = (ndata - 128.) / 127.
             out[ndata == 0] = np.ma.masked
 
         elif data_type_name == 'WIDTH':
@@ -594,7 +681,7 @@ def convert_sigmet_data(data_type, data):
         elif data_type_name == 'ZDR':
             # ZDR, 5, Differential reflectivity (1 byte)
             # 1-byte ZDR format, section 4.3.37
-            out[:] = (ndata - 128) / 16.
+            out[:] = (ndata - 128.) / 16.
             out[ndata == 0] = np.ma.masked
 
         elif data_type_name == 'KDP':
@@ -618,14 +705,14 @@ def convert_sigmet_data(data_type, data):
         elif data_type_name == 'PHIDP':
             # PHIDP, 16, PhiDP(Differential phase) (1 byte)
             # 1-byte PhiDP format, section 4.3.18
-            out[:] = 180. * ((ndata - 1) / 254.)
+            out[:] = 180. * ((ndata - 1.) / 254.)
             out[ndata == 0] = np.ma.masked
             out[ndata == 255] = np.ma.masked
 
         elif data_type_name == 'RHOHV':
             # RHOHV, 19, RhoHV (1 byte)
             # 1-bytes RhoHV format, section 4.3.23
-            out[:] = np.sqrt((ndata - 1) / 253)
+            out[:] = np.sqrt((ndata - 1.) / 253.)
             out[ndata == 0] = np.ma.masked
             out[ndata == 255] = np.ma.masked
 
